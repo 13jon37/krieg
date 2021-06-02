@@ -4,6 +4,7 @@ use sdl2::render::{WindowCanvas, Texture};
 use sdl2::rect::{Point, Rect};
 use sdl2::image::{self, LoadTexture, InitFlag};
 use sdl2::keyboard::Keycode;
+use std::thread::current;
 use std::time::Duration;
 
 const PLAYER_MOVEMENT_SPEED: i32 = 5;
@@ -22,6 +23,18 @@ struct Player {
     sprite: Rect,
     speed: i32,
     direction: Direction,
+    current_frame: i32,
+}
+
+fn direction_spritesheet_row(direcction: Direction) -> i32{
+    use self::Direction::*;
+    match direcction {
+        Up => 3,
+        Down => 0,
+        Left => 1,
+        Right => 2,
+    }
+
 }
 
 fn render(canvas: &mut WindowCanvas, 
@@ -35,11 +48,16 @@ fn render(canvas: &mut WindowCanvas,
 
     let (width, height) = canvas.output_size()?;
 
+    let (frame_width, frame_height) = player.sprite.size();
+    let current_frame = Rect::new(
+        player.sprite.x() + frame_width as i32 * player.current_frame, 
+        player.sprite.y() + frame_height as i32 * direction_spritesheet_row(player.direction), frame_width, frame_height);
+
     // Treat the center of the screen as the (0, 0) coordinate
     let screen_position = player.position + Point::new(width as i32 / 2, height as i32 / 2);
-    let screen_rect = Rect::from_center(screen_position, player.sprite.width(), player.sprite.height());
+    let screen_rect = Rect::from_center( screen_position, frame_width, frame_height);
 
-    canvas.copy(texture, player.sprite, screen_rect)?;
+    canvas.copy(texture, current_frame, screen_rect)?;
 
     canvas.present();
 
@@ -61,6 +79,11 @@ fn update_player(player: &mut Player) {
         Down => {
             player.position = player.position.offset(0, player.speed);
         },
+    }   
+
+    if player.speed != 0 {
+        // Cheat: using the fact that all animations are 3 frames (NOT extensible)
+        player.current_frame = (player.current_frame + 1) % 3;
     }
 }
  
@@ -88,6 +111,7 @@ fn main() -> Result<(), String> {
         sprite: Rect::new(0, 0, 26, 36),
         speed: 5,
         direction: Direction::Right,
+        current_frame: 0,
     };
 
     let mut i = 0;
